@@ -1,76 +1,69 @@
 
+import time
+
 def energyManagementSystem(measurements, setpoints, timeout):
 
-    batteryOperatingLimits(measurements)
-    # If batteryOperatingLimits rerurns False three consecutive times -> output: i=0
-    updatedOnTime(measurements["dateUpdated"], timeout)
-    # If updatedOnTime returns False -> output: i=0
+    failedBatteryChecks = 0
+    updateFailedBatteryChecks(measurements, failedBatteryChecks=0)
 
-    # Else if the operating conditions of the battery are ok AND the measurements are updated on time:
-    # The output current can be set equal to the measured current = battery charging current
+    if (checkNumberOfFailures(failedBatteryChecks) and updatedOnTime(measurements["dateUpdated"], timeout)):
+        if setpoints["power"] > 0: 
+             setOutput(measurements["current"]) #battery is charging
+        elif setpoints["power"] < 0:
+             setOutput(-abs(measurements["current"])) #battery is discharging
+        else:
+            setOutput(0) #battery is idle
+    else:
+        setOutput(0) #Battery limits are not respected or not updated on time...
 
-    return
-    # For the return, we have to return a dictionary with the current (i=measured current OR i=0)
 
 
-def batteryOperatingLimits(measurements):
-    """
-    Function to determine whether the input measurements (voltage, current, temperature) are within
-    the specified range. Function returns False when either one of the checks is failing i.e. the input 
-    measurement is not within the specified range.
-    """
-    if not voltageCheck(measurements["voltage"]):
+def checkBatteryLimits(measurements):
+
+    minVoltage, maxVoltage = 450, 500 #min and max values need to be implemented
+    minCurrent, maxCurrent = 5, 15 #min and max values need to be implemented
+    maxTemperature = 75 #max value needs to be implemented
+
+    measuredVoltage = measurements["voltage"]
+    measuredCurrent = abs(measurements["current"])
+    measuredTemperature = measurements["temperature"]
+
+    if (measuredVoltage < minVoltage or measuredVoltage > maxVoltage):
         return False
-    elif not currentCheck(measurements["current"]):
+    elif (measuredCurrent < minCurrent or measuredCurrent > maxCurrent):
         return False
-    elif not temperatureCheck(measurements["temperature"]):
+    elif (measuredTemperature > maxTemperature):
         return False
     else:
         return True
-    
 
-def voltageCheck(voltageMeasurement):
-    """
-    Function to check whether the voltage measurement is within the specified range.
-    """
-    maxVoltage = 500 #get by using function getMaxVoltage
-    minVoltage = 450 #get by using function getMinVoltage
+def updateFailedBatteryChecks(measurements, failedBatteryChecks):
+    if checkBatteryLimits(measurements):
+        failedBatteryChecks = 0
+    else: 
+        failedBatteryChecks =+ 1
 
-    if (voltageMeasurement > minVoltage and voltageMeasurement < maxVoltage):
-        return True
-    else:
+def checkNumberOfFailures(failedBatteryChecks):
+    if (failedBatteryChecks >= 3):
         return False
-
-def currentCheck(currentMeasurement):
-    """
-    Function to check whether the current measurement is within the specified range.
-    """
-    maxCurrent = 15 #get by using function getMaxCurrent
-    minCurrent = 5 #get by using function getMinCurrent
-
-    if (currentMeasurement > minCurrent or currentMeasurement < maxCurrent):
-        return True
     else:
-        return False
+        return True
 
-def temperatureCheck(temperatureMeasurement):
-    """
-    Function to check whether the temperature measurement is below the max temperature.
-    """
-    maxTemperature = 75 #get by using function getMaxTemperature
-
-    if (temperatureMeasurement < maxTemperature):
+def updatedOnTime(timeUpdated, timeout):
+    timeDifference = int(time.time()) - timeUpdated #unixtimestamp
+    if timeDifference < timeout:
         return True
     else:
         return False
 
 
-def updatedOnTime(lastUpdate, timeout):
+
+
+def setOutput(outputCurrent):
     """
-    Function to determine whether the measurements are updated within the timeout period. 
-    Returns true if the last update is smaller than the timeout.
+    This function returns the output current (in dictionary format: {"current": I})
     """
-    return True
+    print({"current": outputCurrent})
 
 
 
@@ -83,7 +76,7 @@ measurements = {
 }
 
 setpoints = {
-    "power": 5
+    "power": 2000
 }
 
 energyManagementSystem(measurements, setpoints, timeout=5)
